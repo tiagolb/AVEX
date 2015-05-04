@@ -18,26 +18,33 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 // AVEX: includes no "x6502.h"
+#include "types.h"
+#include "x6502.h"
+#include "utils/memory.h"
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#define INTERVAL 1000000
+
  // AVEX: include
-//#define FINE_PROFILING
+#define FINE_PROFILING
+//#define PRINT_FINE
 //#define COARSE_PROFILING
 
 #ifdef FINE_PROFILING
-time_t * opTime;
+float * opTime;
 int * opCount;
-time_t beforeSwitch;
-time_t now;
+clock_t beforeSwitch;
+clock_t now;
 #endif
 
 #ifdef COARSE_PROFILING
 int opsInterval;
-time_t beginTime;
-time_t executionTime;
-time_t coarse_now;
+clock_t beginTime;
+clock_t executionTime;
+clock_t coarse_now;
 #endif
 
-#include "types.h"
-#include "x6502.h"
 #include "fceu.h"
 #include "debug.h"
 #include "sound.h"
@@ -300,6 +307,7 @@ static uint8 ZNTable[256];
 }
 
 /* Indirect Indexed(for writes and rmws) */
+ // AVEX: nao ultrapassa a gama de memoria da arquitectura original
 #define GetIYWR(target)  \
 {  \
  unsigned int rt;  \
@@ -311,7 +319,7 @@ static uint8 ZNTable[256];
  rt|=RdRAM(tmp)<<8;  \
  target=rt;  \
  target+=_Y;  \
- target&=0xFFFF; \ // AVEX: nao ultrapassa a gama de memoria da arquitectura original
+ target&=0xFFFF; \
  RdMem((target&0x00FF)|(rt&0xFF00));  \
 }
 
@@ -394,6 +402,7 @@ void TriggerNMI2(void)
 void X6502_Reset(void)
 {
  _IRQlow=FCEU_IQRESET;
+ X6502_FreeVariables(); // AVEX: reset variables
 }
 /**
 * Initializes the 6502 CPU
@@ -428,31 +437,83 @@ void X6502_Power(void)
  _S=0xFD;
  timestamp=0;
  X6502_Reset();
+ X6502_LoadVariables(); //AVEX: Load variables
 }
 
-void X6502_Run(int32 cycles)
-{
-
+void X6502_LoadVariables() {
   // AVEX: debug init
   #ifdef FINE_PROFILING
-  opTime = (time_t*) FCEU_malloc(0xFF * sizeof(time_t));
-  memset(opTime, 0, sizeof(opTime));
+  FCEU_printf("[+] FINE PROFILING [+]\n");
+  FCEU_printf("[+] INFO - To save the profiling to a file \"PROFILING.txt\"\n");
+  FCEU_printf("[+] INFO - do Emulation > Reset\n");
+  opTime = (float*) FCEU_malloc(0xFF * sizeof(float));
+  memset(opTime, 0, 0xFF * sizeof(float));
 
   opCount = (int*) FCEU_malloc(0xFF * sizeof(int));
-  memset(opCount, 0, sizeof(opCount));
-
-  beforeSwitch;
-  now;
+  memset(opCount, 0, 0xFF * sizeof(int));
   #endif
 
   #ifdef COARSE_PROFILING
+  FCEU_printf("[+] COARSE PROFILING [+]\n");
   opsInterval = INTERVAL;
-  beginTime = time(NULL);
+  beginTime = clock();
   executionTime = 0;
-  coarse_now;
   #endif
   // AVEX: end debug init
+}
 
+void x6502_WriteProfileToFile() {
+  std::ofstream outFile("PROFILING.txt");
+  if(outFile.is_open()) {
+
+    for (uint8 i = 0; i < 0xFF; i++) {
+      if(opCount[i] != 0) {
+        outFile << "--------------------------\n";
+        char inst[5];
+        sprintf(inst, "%X", i);
+        outFile << "OP -> 0x" << inst << "\n";
+        outFile << "OP time: " << opTime[i] << "\n";
+        outFile << "OP count: " << opCount[i] << "\n";
+      }
+    }
+
+    outFile.close();
+  }
+}
+
+void x6502_PrintFineProfileToConsole() {
+  for (uint8 i = 0; i < 0xFF; i++) {
+    if(opCount[i] != 0) {
+      FCEU_printf("--------------------------");
+      FCEU_printf("OP %x (%d)\n", i, i);
+      FCEU_printf("OP time: %f\n", opTime[i]);
+      FCEU_printf("OP count: %d\n", opCount[i]);
+    }
+  }
+}
+
+void X6502_FreeVariables() {
+  #ifdef FINE_PROFILING
+  
+  if(opTime != NULL && opCount != NULL) {
+    FCEU_printf("[+] INFO - FREE & Write to file \"PROFILING.txt\"\n");
+    
+    x6502_WriteProfileToFile();
+
+    #ifdef PRINT_FINE
+    x6502_PrintFineProfileToConsole();
+    #endif
+
+    free(opTime);
+    free(opCount);
+    opTime = NULL;
+    opCount = NULL;
+  }
+  #endif
+ }
+
+void X6502_Run(int32 cycles)
+{
   if(PAL)
    cycles*=15;    // 15*4=60
   else
@@ -539,7 +600,7 @@ extern int test; test++;
    _PC++;
 
    #ifdef FINE_PROFILING
-   beforeSwitch = time(NULL);
+   beforeSwitch = clock();
    #endif
 
    switch(b1)
@@ -549,19 +610,27 @@ extern int test; test++;
 
    // dois arrays (tempo, n vezes) consoante bytecode
    #ifdef FINE_PROFILING
-   now = time(NULL);
-   opTime[b1] += difftime(now, beforeSwitch);
+   now = clock();
+   clock_t clicks = now - beforeSwitch;
+   opTime[b1] += ((float)clicks)/CLOCKS_PER_SEC;
    opCount[b1] += 1;
    #endif
 
    #ifdef COARSE_PROFILING
    opsInterval--;
    if(opsInterval == 0) {
-    coarse_now = time(NULL);
-    executionTime = difftime(coarse_now, beginTime);
+    coarse_now = clock();
+    executionTime = coarse_now - beginTime;
+    //executionTime = ((float)timediff) / CLOCKS_PER_SEC;
+    float seconds = ((float)executionTime)/CLOCKS_PER_SEC;
+
+    FCEU_printf("[++++++++++++++++++++++++++++++++]\n");
+    FCEU_printf("[+] INFO - Begin Time: %d\n", beginTime);
+    FCEU_printf("[+] INFO - (NOW) Time: %d\n", coarse_now);
+    FCEU_printf("[+] INFO - Exec Time: %d clicks (%f seconds)\n", executionTime, seconds);
+
     beginTime = coarse_now;
     opsInterval = INTERVAL;
-    FCEU_printf("Execution Time: %d\n", executionTime);
    }
    #endif
 

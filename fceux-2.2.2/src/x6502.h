@@ -76,6 +76,8 @@ extern void (*MapIRQHook)(int a);
 
 void X6502_Init(void);
 void X6502_Reset(void);
+void X6502_LoadVariables();
+void X6502_FreeVariables();
 void X6502_Power(void);
 
 void TriggerNMI(void);
@@ -88,24 +90,4 @@ void X6502_IRQBegin(int w);
 void X6502_IRQEnd(int w);
 
 #define _X6502H
-#endif
-
-// AVEX: include
-#include <ctime>
-#define INTERVAL 10000
-//#define FINE_PROFILING
-//#define COARSE_PROFILING
-
-#ifdef FINE_PROFILING
-extern time_t * opTime;
-extern int * opCount;
-extern time_t beforeSwitch;
-extern time_t now;
-#endif
-
-#ifdef COARSE_PROFILING
-extern int opsInterval;
-extern time_t beginTime;
-extern time_t executionTime;
-extern time_t coarse_now;
 #endif
