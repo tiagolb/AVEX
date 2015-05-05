@@ -465,15 +465,12 @@ void X6502_LoadVariables() {
 void x6502_WriteProfileToFile() {
   std::ofstream outFile("PROFILING.txt");
   if(outFile.is_open()) {
-
+    outFile << "instruction, time, count\n";
     for (uint8 i = 0; i < 0xFF; i++) {
       if(opCount[i] != 0) {
-        outFile << "--------------------------\n";
         char inst[5];
         sprintf(inst, "%X", i);
-        outFile << "OP -> 0x" << inst << "\n";
-        outFile << "OP time: " << opTime[i] << "\n";
-        outFile << "OP count: " << opCount[i] << "\n";
+        outFile << "0x" << inst << ", " << opTime[i] << ", " << opCount[i] << "\n";
       }
     }
 
