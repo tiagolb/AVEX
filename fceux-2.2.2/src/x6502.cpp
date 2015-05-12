@@ -26,10 +26,10 @@
 #include <fstream>
 #define INTERVAL 1000000
 
- // AVEX: include
-#define FINE_PROFILING
+// AVEX: include
+//#define FINE_PROFILING
 //#define PRINT_FINE
-//#define COARSE_PROFILING
+#define COARSE_PROFILING
 
 #ifdef FINE_PROFILING
 float * opTime;
@@ -455,6 +455,7 @@ void X6502_LoadVariables() {
 
   #ifdef COARSE_PROFILING
   FCEU_printf("[+] COARSE PROFILING [+]\n");
+  FCEU_printf("clicks\n");
   opsInterval = INTERVAL;
   beginTime = clock();
   executionTime = 0;
@@ -462,6 +463,7 @@ void X6502_LoadVariables() {
   // AVEX: end debug init
 }
 
+#ifdef FINE_PROFILING
 void x6502_WriteProfileToFile() {
   std::ofstream outFile("PROFILING.txt");
   if(outFile.is_open()) {
@@ -488,6 +490,7 @@ void x6502_PrintFineProfileToConsole() {
     }
   }
 }
+#endif
 
 void X6502_FreeVariables() {
   #ifdef FINE_PROFILING
@@ -602,7 +605,8 @@ extern int test; test++;
 
    switch(b1)
    {
-    #include "ops.inc"
+    //#include "ops.inc"
+    #include "ops_changed.inc"
    }
 
    // dois arrays (tempo, n vezes) consoante bytecode
@@ -619,12 +623,14 @@ extern int test; test++;
     coarse_now = clock();
     executionTime = coarse_now - beginTime;
     //executionTime = ((float)timediff) / CLOCKS_PER_SEC;
-    float seconds = ((float)executionTime)/CLOCKS_PER_SEC;
+    //float seconds = ((float)executionTime)/CLOCKS_PER_SEC;
 
-    FCEU_printf("[++++++++++++++++++++++++++++++++]\n");
+    /*FCEU_printf("[++++++++++++++++++++++++++++++++]\n");
     FCEU_printf("[+] INFO - Begin Time: %d\n", beginTime);
     FCEU_printf("[+] INFO - (NOW) Time: %d\n", coarse_now);
-    FCEU_printf("[+] INFO - Exec Time: %d clicks (%f seconds)\n", executionTime, seconds);
+    FCEU_printf("[+] INFO - Exec Time: %d clicks (%f seconds)\n", executionTime, seconds);*/
+
+    FCEU_printf("%d\n", executionTime);
 
     beginTime = coarse_now;
     opsInterval = INTERVAL;
