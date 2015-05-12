@@ -27,9 +27,9 @@
 #define INTERVAL 1000000
 
 // AVEX: include
-//#define FINE_PROFILING
+#define FINE_PROFILING
 //#define PRINT_FINE
-#define COARSE_PROFILING
+//#define COARSE_PROFILING
 
 #ifdef FINE_PROFILING
 float * opTime;
@@ -467,12 +467,12 @@ void X6502_LoadVariables() {
 void x6502_WriteProfileToFile() {
   std::ofstream outFile("PROFILING.txt");
   if(outFile.is_open()) {
-    outFile << "instruction, time, count\n";
+    outFile << "instruction\ttime\tcount\n";
     for (uint8 i = 0; i < 0xFF; i++) {
       if(opCount[i] != 0) {
         char inst[5];
         sprintf(inst, "%X", i);
-        outFile << "0x" << inst << ", " << opTime[i] << ", " << opCount[i] << "\n";
+        outFile << "0x" << inst << "\t" << opTime[i] << "\t" << opCount[i] << "\n";
       }
     }
 
